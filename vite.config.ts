@@ -17,4 +17,5 @@ export default defineConfig({
       $wasm: path.resolve("./wasm/pkg/wasm"),
     },
   },
+  base: process.env.NODE_ENV === 'production' ? '/sripa/' : '/',
 });
