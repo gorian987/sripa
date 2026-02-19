@@ -28,7 +28,7 @@ jobs:
       # 2. Rust (Wasm) のビルド
       - name: Build Wasm
         run: |
-          cd rust-src-dir # Rustのフォルダ名に書き換え
+          cd wasm
           wasm-pack build --target web
 
       # 3. Node.js & Vite ビルド
@@ -41,7 +41,7 @@ jobs:
       - name: Build Svelte (Vite)
         run: |
           npm install
-          npm run build # これにより dist/ フォルダが生成されます
+          npm run build
           cp dist/index.html dist/404.html
 
       # 4. GitHub Pages へのアップロード (distフォルダを指定)
