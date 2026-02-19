@@ -25,6 +25,7 @@
 			<Separator class="my-4" />
 			<BlobSetting bind:process={blobProcess} />
 		{/if}
+		<Separator class="my-4" />
 		<CropSetting bind:process={cropProcess} />
 	</ScrollArea>
 </main>

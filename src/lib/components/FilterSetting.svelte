@@ -12,7 +12,7 @@
 		class?: ClassValue;
 	}
 
-	const maxNum = 8;
+	const maxNum = 4;
 	const names = ['None', 'Gaussian blur', 'Sobel'];
 	const items = names.map((name) => ({ value: name, label: name }));
 
