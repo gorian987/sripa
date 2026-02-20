@@ -56,29 +56,32 @@
 	});
 </script>
 
-<div class={cn('flex w-full flex-col', className)}>
-	<div class="m-2 text-xl font-bold">Crop</div>
-	<div class="flex w-full items-center gap-2 p-4">
+<div class={cn('flex w-full flex-col gap-2 p-2', className)}>
+	<div class="text-xl font-bold">Crop</div>
+	<div class="flex w-full items-center gap-2 p-2">
 		<div>enable</div>
 		<Checkbox bind:checked={enabled} />
 	</div>
 
 	{#if enabled}
-		<Select.Root type="single" bind:value={center}>
-			<Select.Trigger class="m-2 font-bold">
-				{center}
-			</Select.Trigger>
-			<Select.Content>
-				<Select.Group>
-					<Select.Label>Position type</Select.Label>
-					{#each items as item}
-						<Select.Item value={item.value} label={item.label}>
-							{item.label}
-						</Select.Item>
-					{/each}
-				</Select.Group>
-			</Select.Content>
-		</Select.Root>
+		<div class="flex w-full flex-col items-start gap-2 p-2">
+			<div>Center</div>
+			<Select.Root type="single" bind:value={center}>
+				<Select.Trigger class="font-bold">
+					{center}
+				</Select.Trigger>
+				<Select.Content>
+					<Select.Group>
+						<Select.Label>Position type</Select.Label>
+						{#each items as item}
+							<Select.Item value={item.value} label={item.label}>
+								{item.label}
+							</Select.Item>
+						{/each}
+					</Select.Group>
+				</Select.Content>
+			</Select.Root>
+		</div>
 		<Parameter label="width" bind:value={width} max={100} min={0} step={0.1} />
 		<Parameter label="height" bind:value={height} max={100} min={0} step={0.1} />
 	{/if}

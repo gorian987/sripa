@@ -16,16 +16,16 @@
 <main class="flex h-screen min-h-150 w-screen min-w-200 flex-none gap-4">
 	<PreviewArea class="flex-2" {colorProcess} {filterProcess} {blobProcess} {cropProcess} />
 	<ScrollArea class="h-full flex-1 border">
-		<div class="m-2 text-2xl font-bold">Image processing parameters</div>
-		<Separator class="my-4" />
+		<div class="p-2 text-2xl font-bold">Image processing parameters</div>
+		<Separator class="my-2" />
 		<ColorSetting bind:process={colorProcess} />
 		{#if colorProcess}
-			<Separator class="my-4" />
+			<Separator class="my-2" />
 			<FilterSetting bind:process={filterProcess} />
-			<Separator class="my-4" />
+			<Separator class="my-2" />
 			<BlobSetting bind:process={blobProcess} />
 		{/if}
-		<Separator class="my-4" />
+		<Separator class="my-2" />
 		<CropSetting bind:process={cropProcess} />
 	</ScrollArea>
 </main>

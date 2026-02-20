@@ -63,28 +63,32 @@
 	});
 </script>
 
-<div class={cn('flex w-full flex-col', className)}>
-	<div class="m-2 text-xl font-bold">Blob</div>
-	<div class="flex w-full items-center gap-2 p-4">
+<div class={cn('flex w-full flex-col gap-2 p-2', className)}>
+	<div class="text-xl font-bold">Blob</div>
+	<div class="flex w-full items-center gap-2 p-2">
 		<div>enable</div>
 		<Checkbox bind:checked={enabled} />
 	</div>
 
 	{#if enabled}
-		<div class="w-full p-2 font-bold underline">Binarization</div>
-		<div class="flex w-full items-center gap-2 p-4">
-			<div>inverse</div>
-			<Checkbox bind:checked={inverse} />
+		<div class="flex w-full flex-col gap-2 p-2">
+			<div class="font-bold underline">Binarization</div>
+			<div class="flex w-full items-center gap-2 p-2">
+				<div>inverse</div>
+				<Checkbox bind:checked={inverse} />
+			</div>
+			<Parameter label="threshold" bind:value={threshold} max={255} min={0} step={1} />
+			<Parameter label="max value" bind:value={maxBright} max={255} min={0} step={1} />
 		</div>
-		<Parameter label="threshold" bind:value={threshold} max={255} min={0} step={1} />
-		<Parameter label="max value" bind:value={maxBright} max={255} min={0} step={1} />
 
-		<div class="w-full p-2 font-bold underline">Detection</div>
-		<Parameter label="left" bind:value={left} max={100} min={0} step={0.1} />
-		<Parameter label="top" bind:value={top} max={100} min={0} step={0.1} />
-		<Parameter label="right" bind:value={right} max={100} min={0} step={0.1} />
-		<Parameter label="bottom" bind:value={bottom} max={100} min={0} step={0.1} />
-		<Parameter label="min size" bind:value={minSize} max={100} min={0} step={0.1} />
-		<Parameter label="max size" bind:value={maxSize} max={100} min={0} step={0.1} />
+		<div class="flex w-full flex-col gap-2 p-2">
+			<div class="font-bold underline">Detection</div>
+			<Parameter label="left" bind:value={left} max={100} min={0} step={0.1} />
+			<Parameter label="top" bind:value={top} max={100} min={0} step={0.1} />
+			<Parameter label="right" bind:value={right} max={100} min={0} step={0.1} />
+			<Parameter label="bottom" bind:value={bottom} max={100} min={0} step={0.1} />
+			<Parameter label="min size" bind:value={minSize} max={100} min={0} step={0.1} />
+			<Parameter label="max size" bind:value={maxSize} max={100} min={0} step={0.1} />
+		</div>
 	{/if}
 </div>

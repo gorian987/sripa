@@ -447,9 +447,9 @@
 			<div class="w-full text-center font-bold">After</div>
 		</div>
 	</div>
-	<div class="flex w-full items-center justify-center">
+	<div class="flex w-full items-center justify-center gap-4">
 		<Select.Root type="single" bind:value={downloadType}>
-			<Select.Trigger class="m-2 font-bold">
+			<Select.Trigger class="font-bold">
 				{downloadType}
 			</Select.Trigger>
 			<Select.Content>

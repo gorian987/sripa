@@ -24,9 +24,9 @@
 	}: Props = $props();
 </script>
 
-<div class={cn('flex w-full flex-col items-start p-4', className)}>
+<div class={cn('flex w-full flex-col items-start p-2', className)}>
 	<div>{label}</div>
-	<div class="flex w-full gap-4">
+	<div class="flex w-full gap-2">
 		<Slider type="single" class="flex-10" bind:value {max} {min} {step} />
 		<Input
 			type="number"

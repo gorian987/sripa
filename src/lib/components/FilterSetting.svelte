@@ -43,13 +43,13 @@
 	});
 </script>
 
-<div class={cn('flex w-full flex-col', className)}>
-	<div class="m-2 text-xl font-bold">Filter</div>
+<div class={cn('flex w-full flex-col gap-2 p-2', className)}>
+	<div class="text-xl font-bold">Filter</div>
 	{#each { length: maxNum }, i}
-		<div class="m-2 flex items-center">
+		<div class="flex items-center gap-2 p-2">
 			<div class="font-bold">No. {i + 1}</div>
 			<Select.Root type="single" bind:value={selects[i]}>
-				<Select.Trigger class="m-2 font-bold">
+				<Select.Trigger class="font-bold">
 					{selects[i]}
 				</Select.Trigger>
 				<Select.Content>

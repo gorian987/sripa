@@ -38,10 +38,10 @@
 	});
 </script>
 
-<div class={cn('flex w-full flex-col', className)}>
-	<div class="m-2 text-xl font-bold">Color</div>
+<div class={cn('flex w-full flex-col gap-2 p-2', className)}>
+	<div class="text-xl font-bold">Color</div>
 	<Select.Root type="single" bind:value={select}>
-		<Select.Trigger class="m-2 font-bold">
+		<Select.Trigger class="font-bold">
 			{select}
 		</Select.Trigger>
 		<Select.Content>
