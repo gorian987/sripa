@@ -15,6 +15,9 @@ use kornia::{
 };
 use wasm_bindgen::prelude::*;
 
+mod node;
+mod record;
+
 #[wasm_bindgen]
 pub struct CanvasImage {
     data: Vec<u8>,
@@ -653,5 +656,14 @@ mod tests {
     fn it_works() {
         let result = add(2, 2);
         assert_eq!(result, 4);
+    }
+
+    #[test]
+    fn generate_types() -> Result<(), specta_typescript::ExportError> {
+        let mut types = specta::TypeCollection::default();
+        types.register::<node::NodeType>();
+
+        specta_typescript::Typescript::default().export_to("./pkg/bindings.ts", &types)?;
+        Ok(())
     }
 }
