@@ -16,7 +16,9 @@ use kornia::{
 use wasm_bindgen::prelude::*;
 
 mod node;
+mod node_manager;
 mod record;
+mod storage;
 
 #[wasm_bindgen]
 pub struct CanvasImage {

@@ -1,8 +1,4 @@
-use std::{
-    collections::VecDeque,
-    hash::{DefaultHasher, Hash, Hasher},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use image::{DynamicImage, RgbaImage};
 
@@ -10,7 +6,6 @@ pub struct ImageRecorder {
     buffer: Vec<u8>,
     width: u32,
     height: u32,
-    storage: VecDeque<TaggedImage>,
 }
 
 impl ImageRecorder {
@@ -19,7 +14,6 @@ impl ImageRecorder {
             buffer: vec![0; (4 * width * height) as usize],
             width,
             height,
-            storage: VecDeque::new(),
         }
     }
 
@@ -35,11 +29,7 @@ impl ImageRecorder {
         self.buffer.as_ptr()
     }
 
-    pub fn take_records(&mut self) -> VecDeque<TaggedImage> {
-        std::mem::take(&mut self.storage)
-    }
-
-    pub fn record(&mut self, width: u32, height: u32, filename: String, last_modified: u64) {
+    pub fn record(&mut self, width: u32, height: u32) -> Arc<DynamicImage> {
         let width = width.min(self.width);
         let height = height.min(self.height);
         let len = (4 * width * height) as usize;
@@ -48,21 +38,33 @@ impl ImageRecorder {
         let image =
             RgbaImage::from_raw(width, height, buf).unwrap_or(RgbaImage::new(width, height));
 
-        let mut hasher = DefaultHasher::new();
-        width.hash(&mut hasher);
-        height.hash(&mut hasher);
-        filename.hash(&mut hasher);
-        last_modified.hash(&mut hasher);
-
-        self.storage.push_back(TaggedImage {
-            id: hasher.finish(),
-            image: Arc::new(DynamicImage::ImageRgba8(image)),
-        });
+        Arc::new(DynamicImage::ImageRgba8(image))
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct TaggedImage {
-    pub id: u64,
-    pub image: Arc<DynamicImage>,
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn record_abnormal_size() -> Result<(), ()> {
+        let width = 5;
+        let height = 5;
+
+        let mut recorder = ImageRecorder::new(width, height);
+        let zero_size = recorder.record(0, 0);
+        let over_width = recorder.record(2 * width, height);
+        let over_height = recorder.record(width, 2 * height);
+
+        assert_eq!(zero_size.width(), 0);
+        assert_eq!(zero_size.height(), 0);
+
+        assert_eq!(over_width.width(), width);
+        assert_eq!(over_width.height(), height);
+
+        assert_eq!(over_height.width(), width);
+        assert_eq!(over_height.height(), height);
+
+        Ok(())
+    }
 }
