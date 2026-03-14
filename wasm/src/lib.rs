@@ -5,18 +5,17 @@ use imageproc::{
     rect::Rect,
     region_labelling::{Connectivity, connected_components},
 };
-use kornia::{
-    image::{Image, ImageSize, allocator::CpuAllocator},
-    imgproc::{
-        crop::crop_image,
-        filter,
-        threshold::{threshold_binary, threshold_binary_inverse},
-    },
+use kornia_image::{Image, ImageSize, allocator::CpuAllocator};
+use kornia_imgproc::{
+    crop::crop_image,
+    filter,
+    threshold::{threshold_binary, threshold_binary_inverse},
 };
 use wasm_bindgen::prelude::*;
 
 mod node;
 mod node_manager;
+mod node_result;
 mod record;
 mod storage;
 

@@ -9,10 +9,13 @@ crate-type = ["cdylib"]
 [dependencies]
 image = "0.25"
 imageproc = "0.25"
-kornia = "0.1.9"
+kornia-image = "0.1"
+kornia-imgproc = "0.1"
 lru = "0.16.3"
+ordered-float = { version = "5.1.0", features = ["serde"] }
 petgraph = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 specta = { version = "2.0.0-rc.20", features = ["derive"] }
 specta-typescript = "0.0.9"
+thiserror = "2.0"
 wasm-bindgen = "0.2"

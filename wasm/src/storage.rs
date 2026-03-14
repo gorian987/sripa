@@ -1,10 +1,9 @@
-use crate::node::NodeResult;
-use lru::LruCache;
+use crate::node_result::NodeResult;
 use std::num::NonZeroUsize;
 
 pub struct ResultStorage {
-    protected: LruCache<u64, NodeResult>,
-    standard: LruCache<u64, NodeResult>,
+    protected: lru::LruCache<u64, NodeResult>,
+    standard: lru::LruCache<u64, NodeResult>,
     max_bytes: usize,
     usage_bytes: usize,
 }
@@ -12,8 +11,8 @@ pub struct ResultStorage {
 impl ResultStorage {
     pub fn new(protected_cap: usize, standard_cap: usize, max_bytes: usize) -> Self {
         Self {
-            protected: LruCache::new(NonZeroUsize::new(protected_cap).unwrap()),
-            standard: LruCache::new(NonZeroUsize::new(standard_cap).unwrap()),
+            protected: lru::LruCache::new(NonZeroUsize::new(protected_cap).unwrap()),
+            standard: lru::LruCache::new(NonZeroUsize::new(standard_cap).unwrap()),
             max_bytes,
             usage_bytes: 0,
         }
