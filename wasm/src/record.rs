@@ -31,8 +31,17 @@ impl ImageRecorder {
     }
 
     pub fn record(&mut self, width: u32, height: u32) -> Result<Arc<ImageType>, ImageError> {
-        let width = width.clamp(1, self.width) as usize;
-        let height = height.clamp(1, self.height) as usize;
+        if width == 0 || height == 0 {
+            return Err(ImageError::InvalidImageSize(
+                width as usize,
+                height as usize,
+                self.width as usize,
+                self.height as usize,
+            ));
+        }
+
+        let width = width.min(self.width) as usize;
+        let height = height.min(self.height) as usize;
         let len = 4 * width * height;
 
         let size = ImageSize { width, height };
@@ -42,8 +51,9 @@ impl ImageRecorder {
 
         let mut rgb = Image::<u8, 3, _>::from_size_val(size, 0, alloc)?;
         color::rgb_from_rgba(&rgba, &mut rgb, None)?;
+        let rgb_f32 = rgb.cast::<f32>()?;
 
-        Ok(Arc::new(ImageType::Rgb8(rgb)))
+        Ok(Arc::new(ImageType::Rgb(rgb_f32)))
     }
 }
 
@@ -52,20 +62,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn record_abnormal_size() -> Result<(), ImageError> {
+    fn record_invalid_size() -> Result<(), ImageError> {
         let width = 5;
         let height = 5;
 
         let mut recorder = ImageRecorder::new(width, height);
-        let zero_size = recorder.record(0, 0)?;
+        let zero_size = recorder.record(0, 0);
         let over_width = recorder.record(2 * width, height)?;
         let over_height = recorder.record(width, 2 * height)?;
 
         let width = width as usize;
         let height = height as usize;
 
-        assert_eq!(zero_size.width(), 1);
-        assert_eq!(zero_size.height(), 1);
+        assert!(zero_size.is_err());
 
         assert_eq!(over_width.width(), width);
         assert_eq!(over_width.height(), height);

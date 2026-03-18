@@ -1,60 +1,14 @@
 use crate::node_result::{ImageType, NodeResult};
-use kornia_image::{Image, ImageError, ImageSize, allocator::CpuAllocator};
+use kornia_image::{Image, ImageError, ImageSize};
 use kornia_imgproc::{filter, threshold};
 use ordered_float::OrderedFloat;
-use std::{
-    collections::HashMap,
-    hash::{DefaultHasher, Hash, Hasher},
-    sync::Arc,
-    u32,
-};
+use std::{hash::Hash, u32};
 
-macro_rules! map {
+macro_rules! img_type_map {
     ($img_type:expr, $src:ident => $action:expr) => {{
         match &*$img_type {
-            ImageType::Gray8($src) => $action.map(|dst| ImageType::Gray8(dst).into_result()),
-            ImageType::Gray32f($src) => $action.map(|dst| ImageType::Gray32f(dst).into_result()),
-            ImageType::Rgb8($src) => $action.map(|dst| ImageType::Rgb8(dst).into_result()),
-            ImageType::Rgb32f($src) => $action.map(|dst| ImageType::Rgb32f(dst).into_result()),
-        }
-    }};
-}
-
-// macro_rules! map_f32 {
-//     ($img_type:expr, $src:ident => $action:expr) => {{
-//         match &*$img_type {
-//             ImageType::Gray8(_) => Ok(NodeResult::Image($img_type)),
-//             ImageType::Gray32f($src) => $action.map(|dst| ImageType::Gray32f(dst).into_result()),
-//             ImageType::Rgb8(_) => Ok(NodeResult::Image($img_type)),
-//             ImageType::Rgb32f($src) => $action.map(|dst| ImageType::Rgb32f(dst).into_result()),
-//         }
-//     }};
-// }
-
-macro_rules! map_rgb_to_gray {
-    ($img_type:expr, $src:ident => $action:expr) => {{
-        match &*$img_type {
-            ImageType::Gray8(_) => Ok(NodeResult::Image($img_type)),
-            ImageType::Gray32f(_) => Ok(NodeResult::Image($img_type)),
-            ImageType::Rgb8($src) => $action.map(|dst| ImageType::Gray8(dst).into_result()),
-            ImageType::Rgb32f($src) => $action.map(|dst| ImageType::Gray32f(dst).into_result()),
-        }
-    }};
-}
-
-macro_rules! map_to_f32 {
-    ($img_type:expr, $src:ident => $action:expr) => {{
-        match &*$img_type {
-            ImageType::Gray8(temp) => {
-                let $src = temp.cast::<f32>()?;
-                $action.map(|dst| ImageType::Gray32f(dst).into_result())
-            }
-            ImageType::Gray32f($src) => $action.map(|dst| ImageType::Gray32f(dst).into_result()),
-            ImageType::Rgb8(temp) => {
-                let $src = temp.cast::<f32>()?;
-                $action.map(|dst| ImageType::Rgb32f(dst).into_result())
-            }
-            ImageType::Rgb32f($src) => $action.map(|dst| ImageType::Rgb32f(dst).into_result()),
+            ImageType::Gray($src) => $action.map(|dst| ImageType::Gray(dst).into()),
+            ImageType::Rgb($src) => $action.map(|dst| ImageType::Rgb(dst).into()),
         }
     }};
 }
@@ -117,30 +71,6 @@ pub struct ReadParams {
     height: u32,
     filename: String,
     last_modified: u64,
-}
-
-impl ReadParams {
-    pub fn new(
-        width: u32,
-        height: u32,
-        filename: String,
-        last_modified: u64,
-        image: Arc<ImageType>,
-        storage: &mut HashMap<u64, NodeResult>,
-    ) -> Self {
-        let params = ReadParams {
-            width,
-            height,
-            filename,
-            last_modified,
-        };
-
-        let mut hasher = DefaultHasher::new();
-        params.hash(&mut hasher);
-
-        storage.insert(hasher.finish(), NodeResult::Image(image));
-        params
-    }
 }
 
 #[derive(Clone, Copy, Debug, Hash, serde::Deserialize, serde::Serialize, specta::Type)]
@@ -223,17 +153,20 @@ impl NodeType {
         inputs: Vec<NodeResult>,
         color: ColorType,
     ) -> Result<NodeResult, NodeError> {
-        let Some(NodeResult::Image(img)) = inputs.into_iter().next() else {
+        let Some(NodeResult::Image(img_type)) = inputs.into_iter().next() else {
             return Err(NodeError::InvalidInput(1));
         };
 
-        map_rgb_to_gray!(img, src => {
-            match color {
-                ColorType::Red => src.channel(0),
-                ColorType::Green => src.channel(1),
-                ColorType::Blue => src.channel(2),
-            }.map_err(|err| NodeError::ImageError(err))
-        })
+        match &*img_type {
+            ImageType::Gray(_) => Ok(NodeResult::Image(img_type)),
+            ImageType::Rgb(rgb) => match color {
+                ColorType::Red => rgb.channel(0),
+                ColorType::Green => rgb.channel(1),
+                ColorType::Blue => rgb.channel(2),
+            }
+            .map(|gray| ImageType::Gray(gray).into())
+            .map_err(|err| err.into()),
+        }
     }
 
     fn gaussian_blur_process(
@@ -243,50 +176,48 @@ impl NodeType {
         sigma_x: f32,
         sigma_y: f32,
     ) -> Result<NodeResult, NodeError> {
-        let Some(NodeResult::Image(img)) = inputs.into_iter().next() else {
+        let Some(NodeResult::Image(img_type)) = inputs.into_iter().next() else {
             return Err(NodeError::InvalidInput(1));
         };
 
-        map_to_f32!(img, src => {
-            let kernel_x = kernel_x.max(1);
-            let kernel_y = kernel_y.max(1);
+        img_type_map!(img_type, src => {
+            let kernel_x = kernel_x.max(0) | 1;
+            let kernel_y = kernel_y.max(0) | 1;
             let sigma_x = sigma_x.max(0.0);
             let sigma_y = sigma_y.max(0.0);
 
             let size = ImageSize {
-                width: src.width() as usize,
-                height: src.height() as usize,
+                width: src.width(),
+                height: src.height(),
             };
-            let alloc = CpuAllocator::default();
-            let mut dst = Image::<f32, _, _>::from_size_val(size, 0.0, alloc)?;
 
+            let mut dst = Image::<_, _, _>::from_size_val(size, 0.0, Default::default())?;
             filter::gaussian_blur(
                 &src,
                 &mut dst,
                 (kernel_x as usize, kernel_y as usize),
                 (sigma_x, sigma_y),
-            );
+            )?;
 
             Ok(dst)
         })
     }
 
     fn sobel_process(inputs: Vec<NodeResult>, kernel: u32) -> Result<NodeResult, NodeError> {
-        let Some(NodeResult::Image(img)) = inputs.into_iter().next() else {
+        let Some(NodeResult::Image(img_type)) = inputs.into_iter().next() else {
             return Err(NodeError::InvalidInput(1));
         };
 
-        map_to_f32!(img, src => {
+        img_type_map!(img_type, src => {
             let kernel = kernel.clamp(3, 5);
 
             let size = ImageSize {
-                width: src.width() as usize,
-                height: src.height() as usize,
+                width: src.width(),
+                height: src.height(),
             };
-            let alloc = CpuAllocator::default();
-            let mut dst = Image::<f32, _, _>::from_size_val(size, 0.0, alloc)?;
 
-            filter::sobel(&src, &mut dst, kernel as usize);
+            let mut dst = Image::<_, _, _>::from_size_val(size, 0.0, Default::default())?;
+            filter::sobel(&src, &mut dst, kernel as usize)?;
 
             Ok(dst)
         })
@@ -298,25 +229,24 @@ impl NodeType {
         max_value: f32,
         inverse: bool,
     ) -> Result<NodeResult, NodeError> {
-        let Some(NodeResult::Image(img)) = inputs.into_iter().next() else {
+        let Some(NodeResult::Image(img_type)) = inputs.into_iter().next() else {
             return Err(NodeError::InvalidInput(1));
         };
 
-        map!(img, src => {
-            let threshold = threshold.clamp(0.0, 255.0) as _;
-            let max_value = max_value.clamp(0.0, 255.0) as _;
+        img_type_map!(img_type, src => {
+            let threshold = threshold.clamp(0.0, 255.0);
+            let max_value = max_value.clamp(0.0, 255.0);
 
             let size = ImageSize {
-                width: src.width() as usize,
-                height: src.height() as usize,
+                width: src.width(),
+                height: src.height(),
             };
-            let alloc = CpuAllocator::default();
-            let mut dst = Image::<_, _, _>::from_size_val(size, Default::default(), alloc)?;
+            let mut dst = Image::<_, _, _>::from_size_val(size, 0.0, Default::default())?;
 
             match inverse {
                 false => threshold::threshold_binary(&src, &mut dst, threshold, max_value),
                 true => threshold::threshold_binary_inverse(&src, &mut dst, threshold, max_value),
-            };
+            }?;
 
             Ok(dst)
         })
@@ -341,4 +271,127 @@ impl NodeType {
     // fn mode_process(inputs: Vec<NodeResult>, rect: ImageRect) -> Result<NodeResult, NodeError> {
     //     NodeResult::None
     // }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kornia_image::{Image, ImageSize, allocator::CpuAllocator};
+    use std::sync::Arc;
+
+    fn create_rgb_image() -> Arc<ImageType> {
+        let size = ImageSize {
+            width: 3,
+            height: 3,
+        };
+        let data = vec![
+            1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, // 1
+            0.5, 0.5, 0.5, 0.2, 0.2, 0.2, 0.8, 0.8, 0.8, // 2
+            0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5, // 3
+        ];
+        Arc::new(ImageType::Rgb(
+            Image::new(size, data, CpuAllocator::default()).unwrap(),
+        ))
+    }
+
+    #[test]
+    fn color_split_red() -> Result<(), NodeError> {
+        let img = create_rgb_image();
+        let inputs = vec![NodeResult::Image(img)];
+
+        let node = NodeType::ColorSplit {
+            color: ColorType::Red,
+        };
+        let result = node.process(inputs)?;
+
+        if let NodeResult::Image(res_img) = result {
+            match &*res_img {
+                ImageType::Gray(gray) => {
+                    let red = gray.get_pixel(0, 0, 0)?;
+                    assert_eq!(*red, 1.0);
+                }
+                _ => return Err(NodeError::InvalidImageType()),
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn gaussian_blur() {
+        let img = create_rgb_image();
+        let inputs = vec![NodeResult::Image(img)];
+
+        let node = NodeType::GaussianBlur {
+            kernel_x: 0,
+            kernel_y: 2,
+            sigma_x: OrderedFloat(0.0),
+            sigma_y: OrderedFloat(-1.0),
+        };
+
+        let result = node.process(inputs);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn sobel() {
+        let img = create_rgb_image();
+        let inputs = vec![NodeResult::Image(img)];
+
+        let zero = NodeType::Sobel { kernel: 0 };
+        let over = NodeType::Sobel { kernel: 10 };
+
+        let res_zero = zero.process(inputs.clone());
+        let res_over = over.process(inputs);
+
+        assert!(res_zero.is_ok());
+        assert!(res_over.is_ok());
+    }
+
+    #[test]
+    fn binarization() -> Result<(), NodeError> {
+        let img = create_rgb_image();
+        let inputs = vec![NodeResult::Image(img)];
+
+        let node = NodeType::Binarization {
+            threshold: OrderedFloat(0.5),
+            max_value: OrderedFloat(1.0),
+            inverse: false,
+        };
+
+        let result = node.process(inputs)?;
+        if let NodeResult::Image(res_img) = result {
+            match &*res_img {
+                ImageType::Rgb(rgb) => {
+                    let not_binarized = rgb
+                        .as_slice()
+                        .iter()
+                        .filter(|v| **v != 0.0 && **v != 1.0)
+                        .collect::<Vec<_>>();
+                    assert!(not_binarized.is_empty());
+                }
+                _ => return Err(NodeError::InvalidImageType()),
+            }
+        };
+
+        Ok(())
+    }
+
+    #[test]
+    fn read_process_fail() {
+        let node = NodeType::Read {
+            width: 100,
+            height: 100,
+            filename: "test.png".to_string(),
+            last_modified: 12345,
+        };
+        let result = node.process(vec![]);
+        assert!(matches!(result, Err(NodeError::ReadProcess())));
+    }
+
+    #[test]
+    fn invalid_input() {
+        let node = NodeType::Sobel { kernel: 3 };
+        let result = node.process(vec![]);
+        assert!(matches!(result, Err(NodeError::InvalidInput(1))));
+    }
 }

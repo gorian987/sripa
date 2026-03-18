@@ -1389,6 +1389,7 @@ dependencies = [
  "kornia-image",
  "kornia-imgproc",
  "lru",
+ "num-traits",
  "ordered-float",
  "petgraph",
  "serde",

@@ -5,10 +5,8 @@ use std::sync::Arc;
 macro_rules! kornia_image_method {
     ($img_type:expr, $img:ident => $action:expr) => {{
         match &*$img_type {
-            ImageType::Gray8($img) => $action,
-            ImageType::Gray32f($img) => $action,
-            ImageType::Rgb8($img) => $action,
-            ImageType::Rgb32f($img) => $action,
+            ImageType::Gray($img) => $action,
+            ImageType::Rgb($img) => $action,
         }
     }};
 }
@@ -23,10 +21,20 @@ pub enum NodeResult {
 
 #[derive(Clone)]
 pub enum ImageType {
-    Gray8(Image<u8, 1, CpuAllocator>),
-    Gray32f(Image<f32, 1, CpuAllocator>),
-    Rgb8(Image<u8, 3, CpuAllocator>),
-    Rgb32f(Image<f32, 3, CpuAllocator>),
+    Gray(Image<f32, 1, CpuAllocator>),
+    Rgb(Image<f32, 3, CpuAllocator>),
+}
+
+impl From<ImageType> for NodeResult {
+    fn from(img: ImageType) -> Self {
+        Self::Image(Arc::new(img))
+    }
+}
+
+impl From<Arc<ImageType>> for NodeResult {
+    fn from(img: Arc<ImageType>) -> Self {
+        Self::Image(img)
+    }
 }
 
 impl NodeResult {
@@ -41,183 +49,172 @@ impl NodeResult {
 }
 
 impl ImageType {
-    pub fn as_gray8(&self) -> Option<&Image<u8, 1, CpuAllocator>> {
-        match self {
-            Self::Gray8(img) => Some(&img),
-            _ => None,
-        }
-    }
-
-    pub fn as_gray32f(&self) -> Option<&Image<f32, 1, CpuAllocator>> {
-        match self {
-            Self::Gray32f(img) => Some(&img),
-            _ => None,
-        }
-    }
-
-    pub fn as_rgb8(&self) -> Option<&Image<u8, 3, CpuAllocator>> {
-        match self {
-            Self::Rgb8(img) => Some(&img),
-            _ => None,
-        }
-    }
-
-    pub fn as_rgb32f(&self) -> Option<&Image<f32, 3, CpuAllocator>> {
-        match self {
-            Self::Rgb32f(img) => Some(&img),
-            _ => None,
-        }
-    }
-
-    pub fn to_gray8(&self) -> Result<Image<u8, 1, CpuAllocator>, ImageError> {
-        match self {
-            Self::Gray8(img) => Ok(img.clone()),
-            Self::Rgb8(img) => {
-                let src = img.cast::<f32>()?;
-
-                let size = ImageSize {
-                    width: src.width(),
-                    height: src.height(),
-                };
-                let alloc = CpuAllocator::default();
-                let mut dst = Image::<f32, 1, _>::from_size_val(size, 0.0, alloc)?;
-
-                color::gray_from_rgb(&src, &mut dst)?;
-                dst.cast::<u8>()
-            }
-            Self::Gray32f(img) => img.cast::<u8>(),
-            Self::Rgb32f(img) => {
-                let src = img;
-                let size = ImageSize {
-                    width: src.width(),
-                    height: src.height(),
-                };
-                let alloc = CpuAllocator::default();
-                let mut dst = Image::<f32, 1, _>::from_size_val(size, 0.0, alloc)?;
-
-                color::gray_from_rgb(&src, &mut dst)?;
-                dst.cast::<u8>()
-            }
-        }
-    }
-
-    pub fn to_gray32f(&self) -> Result<Image<f32, 1, CpuAllocator>, ImageError> {
-        match self {
-            Self::Gray8(img) => img.cast::<f32>(),
-            Self::Rgb8(img) => {
-                let src = img.cast::<f32>()?;
-
-                let size = ImageSize {
-                    width: src.width(),
-                    height: src.height(),
-                };
-                let alloc = CpuAllocator::default();
-                let mut dst = Image::<f32, 1, _>::from_size_val(size, 0.0, alloc)?;
-
-                color::gray_from_rgb(&src, &mut dst)?;
-                Ok(dst)
-            }
-            Self::Gray32f(img) => Ok(img.clone()),
-            Self::Rgb32f(img) => {
-                let src = img;
-
-                let size = ImageSize {
-                    width: src.width(),
-                    height: src.height(),
-                };
-                let alloc = CpuAllocator::default();
-                let mut dst = Image::<f32, 1, _>::from_size_val(size, 0.0, alloc)?;
-
-                color::gray_from_rgb(&src, &mut dst)?;
-                Ok(dst)
-            }
-        }
-    }
-
-    pub fn to_rgb8(&self) -> Result<Image<u8, 3, CpuAllocator>, ImageError> {
-        match self {
-            Self::Gray8(img) => {
-                let src = img.cast::<f32>()?;
-
-                let size = ImageSize {
-                    width: src.width(),
-                    height: src.height(),
-                };
-                let alloc = CpuAllocator::default();
-                let mut dst = Image::<f32, 3, _>::from_size_val(size, 0.0, alloc)?;
-
-                color::rgb_from_gray(&src, &mut dst)?;
-                dst.cast::<u8>()
-            }
-            Self::Rgb8(img) => Ok(img.clone()),
-            Self::Gray32f(img) => {
-                let src = img;
-
-                let size = ImageSize {
-                    width: src.width(),
-                    height: src.height(),
-                };
-                let alloc = CpuAllocator::default();
-                let mut dst = Image::<f32, 3, _>::from_size_val(size, 0.0, alloc)?;
-
-                color::rgb_from_gray(&src, &mut dst)?;
-                dst.cast::<u8>()
-            }
-            Self::Rgb32f(img) => img.cast::<u8>(),
-        }
-    }
-
-    pub fn to_rgb32f(&self) -> Result<Image<f32, 3, CpuAllocator>, ImageError> {
-        match self {
-            Self::Gray8(img) => {
-                let src = img.cast::<f32>()?;
-
-                let size = ImageSize {
-                    width: src.width(),
-                    height: src.height(),
-                };
-                let alloc = CpuAllocator::default();
-                let mut dst = Image::<f32, 3, _>::from_size_val(size, 0.0, alloc)?;
-
-                color::rgb_from_gray(&src, &mut dst)?;
-                Ok(dst)
-            }
-            Self::Rgb8(img) => img.cast::<f32>(),
-            Self::Gray32f(img) => {
-                let src = img;
-
-                let size = ImageSize {
-                    width: src.width(),
-                    height: src.height(),
-                };
-                let alloc = CpuAllocator::default();
-                let mut dst = Image::<f32, 3, _>::from_size_val(size, 0.0, alloc)?;
-
-                color::rgb_from_gray(&src, &mut dst)?;
-                Ok(dst)
-            }
-            Self::Rgb32f(img) => Ok(img.clone()),
-        }
-    }
-
-    pub fn size_bytes(&self) -> usize {
-        match self {
-            Self::Gray8(img) => img.numel(),
-            Self::Gray32f(img) => img.numel() * 4,
-            Self::Rgb8(img) => img.numel(),
-            Self::Rgb32f(img) => img.numel() * 4,
-        }
-    }
-
-    pub fn into_result(self) -> NodeResult {
-        NodeResult::Image(Arc::new(self))
-    }
-
     pub fn height(&self) -> usize {
         kornia_image_method!(self, img => img.height())
     }
 
+    pub fn size_bytes(&self) -> usize {
+        let numel = kornia_image_method!(self, img => {
+            img.numel()
+        });
+
+        numel * 4
+    }
+
     pub fn width(&self) -> usize {
         kornia_image_method!(self, img => img.width())
+    }
+
+    pub fn as_gray(&self) -> Option<&Image<f32, 1, CpuAllocator>> {
+        match self {
+            Self::Gray(img) => Some(&img),
+            _ => None,
+        }
+    }
+
+    pub fn as_rgb(&self) -> Option<&Image<f32, 3, CpuAllocator>> {
+        match self {
+            Self::Rgb(img) => Some(&img),
+            _ => None,
+        }
+    }
+
+    pub fn to_gray(&self) -> Result<Image<f32, 1, CpuAllocator>, ImageError> {
+        match self {
+            Self::Gray(img) => Ok(img.clone()),
+            Self::Rgb(img) => {
+                let src = img;
+
+                let size = ImageSize {
+                    width: src.width(),
+                    height: src.height(),
+                };
+                let alloc = CpuAllocator::default();
+                let mut dst = Image::<f32, 1, _>::from_size_val(size, 0.0, alloc)?;
+
+                color::gray_from_rgb(&src, &mut dst)?;
+                Ok(dst)
+            }
+        }
+    }
+
+    pub fn to_rgb(&self) -> Result<Image<f32, 3, CpuAllocator>, ImageError> {
+        match self {
+            Self::Gray(img) => {
+                let src = img;
+
+                let size = ImageSize {
+                    width: src.width(),
+                    height: src.height(),
+                };
+                let alloc = CpuAllocator::default();
+                let mut dst = Image::<f32, 3, _>::from_size_val(size, 0.0, alloc)?;
+
+                color::rgb_from_gray(&src, &mut dst)?;
+                Ok(dst)
+            }
+            Self::Rgb(img) => Ok(img.clone()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn width() {
+        let size = ImageSize {
+            width: 5,
+            height: 5,
+        };
+        let alloc = CpuAllocator::default();
+
+        let (gray, rgb) = define_all_type(size, alloc);
+
+        assert_eq!(gray.width(), 5);
+        assert_eq!(rgb.width(), 5);
+    }
+
+    #[test]
+    fn height() {
+        let size = ImageSize {
+            width: 5,
+            height: 5,
+        };
+        let alloc = CpuAllocator::default();
+
+        let (gray, rgb) = define_all_type(size, alloc);
+
+        assert_eq!(gray.height(), 5);
+        assert_eq!(rgb.height(), 5);
+    }
+
+    #[test]
+    fn size_bytes() {
+        let size = ImageSize {
+            width: 5,
+            height: 5,
+        };
+        let alloc = CpuAllocator::default();
+
+        let (gray, rgb) = define_all_type(size, alloc);
+
+        assert_eq!(gray.size_bytes(), 100);
+        assert_eq!(rgb.size_bytes(), 300);
+    }
+
+    #[test]
+    fn as_() {
+        let size = ImageSize {
+            width: 5,
+            height: 5,
+        };
+        let alloc = CpuAllocator::default();
+
+        let (gray, rgb) = define_all_type(size, alloc);
+
+        assert!(gray.as_gray().is_some());
+        assert!(gray.as_rgb().is_none());
+
+        assert!(rgb.as_gray().is_none());
+        assert!(rgb.as_rgb().is_some());
+    }
+
+    #[test]
+    fn to_gray() {
+        let size = ImageSize {
+            width: 5,
+            height: 5,
+        };
+        let alloc = CpuAllocator::default();
+
+        let (gray, rgb) = define_all_type(size, alloc);
+
+        assert!(ImageType::Gray(gray.to_gray().unwrap()).as_gray().is_some());
+        assert!(ImageType::Gray(rgb.to_gray().unwrap()).as_gray().is_some());
+    }
+
+    #[test]
+    fn to_rgb32f() {
+        let size = ImageSize {
+            width: 5,
+            height: 5,
+        };
+        let alloc = CpuAllocator::default();
+
+        let (gray, rgb) = define_all_type(size, alloc);
+
+        assert!(ImageType::Rgb(gray.to_rgb().unwrap()).as_rgb().is_some());
+        assert!(ImageType::Rgb(rgb.to_rgb().unwrap()).as_rgb().is_some());
+    }
+
+    fn define_all_type(size: ImageSize, alloc: CpuAllocator) -> (ImageType, ImageType) {
+        let gray =
+            ImageType::Gray(Image::<f32, 1, _>::from_size_val(size, 0.0, alloc.clone()).unwrap());
+        let rgb =
+            ImageType::Rgb(Image::<f32, 3, _>::from_size_val(size, 0.0, alloc.clone()).unwrap());
+
+        (gray, rgb)
     }
 }
