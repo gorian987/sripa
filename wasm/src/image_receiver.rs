@@ -1,6 +1,5 @@
 use crate::node_value::ImageType;
 use kornia_image::{Image, ImageError, ImageSize, allocator::CpuAllocator};
-use kornia_imgproc::color;
 use std::sync::Arc;
 
 pub struct ImageReceiver {
@@ -45,15 +44,14 @@ impl ImageReceiver {
         let len = 4 * width * height;
 
         let size = ImageSize { width, height };
-        let data = self.buffer[..len].to_vec();
+        let data = self.buffer[..len]
+            .chunks_exact(4)
+            .flat_map(|v| [v[0] as f32, v[1] as f32, v[2] as f32])
+            .collect();
         let alloc = CpuAllocator::default();
-        let rgba = Image::<u8, 4, _>::new(size, data, alloc.clone())?;
+        let img = Image::<f32, 3, _>::new(size, data, alloc)?;
 
-        let mut rgb = Image::<u8, 3, _>::from_size_val(size, 0, alloc)?;
-        color::rgb_from_rgba(&rgba, &mut rgb, None)?;
-        let rgb_f32 = rgb.cast::<f32>()?;
-
-        Ok(Arc::new(ImageType::Rgb(rgb_f32)))
+        Ok(Arc::new(ImageType::Rgb(img)))
     }
 }
 
