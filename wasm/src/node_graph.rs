@@ -1,6 +1,6 @@
 use crate::node::NodeType;
-use crate::node_result::NodeResult;
-use crate::storage::ResultStorage;
+use crate::node_cache::NodeCache;
+use crate::node_value::NodeValue;
 use petgraph::{
     Direction,
     graph::NodeIndex,
@@ -12,27 +12,27 @@ use std::{
     num::NonZeroUsize,
 };
 
-pub struct NodeManager {
+pub struct NodeGraph {
     graph: StableGraph<NodeType, usize>,
     hash_cache: lru::LruCache<NodeIndex, u64>,
-    storage: ResultStorage,
+    value_cache: NodeCache,
 }
 
-impl NodeManager {
+impl NodeGraph {
     pub fn new(
         hash_cap: usize,
         protected_cap: usize,
         standard_cap: usize,
         max_bytes: usize,
     ) -> Self {
-        NodeManager {
+        NodeGraph {
             graph: StableGraph::new(),
             hash_cache: lru::LruCache::new(NonZeroUsize::new(hash_cap).unwrap()),
-            storage: ResultStorage::new(protected_cap, standard_cap, max_bytes),
+            value_cache: NodeCache::new(protected_cap, standard_cap, max_bytes),
         }
     }
 
-    pub fn add_node(&mut self, node: NodeType, input_indexes: Vec<NodeIndex>) {
+    pub fn add_node(&mut self, node: NodeType, input_indexes: Vec<NodeIndex>) -> NodeIndex {
         let index = self.graph.add_node(node);
 
         input_indexes
@@ -41,6 +41,8 @@ impl NodeManager {
             .for_each(|(port, input_index)| {
                 self.graph.add_edge(*input_index, index, port);
             });
+
+        index
     }
 
     pub fn update_node(&mut self, index: NodeIndex, node: NodeType, input_indexes: Vec<NodeIndex>) {
@@ -72,7 +74,7 @@ impl NodeManager {
         self.graph.remove_node(index);
     }
 
-    pub fn get_result(&mut self, index: NodeIndex) -> Option<NodeResult> {
+    pub fn get_result(&mut self, index: NodeIndex) -> Option<NodeValue> {
         if !self.graph.contains_node(index) {
             return None;
         }
@@ -90,7 +92,7 @@ impl NodeManager {
         for index in parent_indexes {
             let hash = self.get_node_hash(index);
 
-            if self.storage.contains(&hash) {
+            if self.value_cache.contains(&hash) {
                 continue;
             }
 
@@ -101,13 +103,13 @@ impl NodeManager {
             let Some(node) = self.graph.node_weight(index) else {
                 return None;
             };
-            let result = node.process(inputs).unwrap_or(NodeResult::None);
+            let result = node.process(inputs).unwrap_or(NodeValue::None);
 
-            self.storage.insert(hash, result, node.is_protected());
+            self.value_cache.insert(hash, result, node.is_protected());
         }
 
         let final_hash = self.get_node_hash(index);
-        self.storage.get(&final_hash)
+        self.value_cache.get(&final_hash)
     }
 
     fn get_node_hash(&mut self, index: NodeIndex) -> u64 {
@@ -136,7 +138,7 @@ impl NodeManager {
         final_hash
     }
 
-    fn get_inputs(&mut self, index: NodeIndex) -> Option<Vec<NodeResult>> {
+    fn get_inputs(&mut self, index: NodeIndex) -> Option<Vec<NodeValue>> {
         let mut input_info = self
             .graph
             .edges_directed(index, Direction::Incoming)
@@ -148,7 +150,7 @@ impl NodeManager {
         input_info
             .iter()
             .map(|(_, index)| self.get_result(*index))
-            .collect::<Option<Vec<NodeResult>>>()
+            .collect::<Option<Vec<NodeValue>>>()
     }
 }
 
@@ -157,8 +159,8 @@ mod test {
     use super::*;
     #[test]
     fn add_and_get() {
-        let mut manager = NodeManager::new(1000, 1000, 1000, 1000);
-        manager.add_node(
+        let mut manager = NodeGraph::new(1000, 1000, 1000, 1000);
+        let index = manager.add_node(
             NodeType::Read {
                 width: 640,
                 height: 480,
@@ -168,12 +170,15 @@ mod test {
             Vec::new(),
         );
 
-        assert!(!matches!(manager.get_result(NodeIndex::new(0)), None));
+        assert!(!matches!(
+            manager.get_result(NodeIndex::new(index.index())),
+            None
+        ));
     }
 
     #[test]
     fn update() {
-        let mut manager = NodeManager::new(1000, 1000, 1000, 1000);
+        let mut manager = NodeGraph::new(1000, 1000, 1000, 1000);
         let node = NodeType::Read {
             width: 640,
             height: 480,
@@ -191,7 +196,7 @@ mod test {
 
     #[test]
     fn remove() {
-        let mut manager = NodeManager::new(1000, 1000, 1000, 1000);
+        let mut manager = NodeGraph::new(1000, 1000, 1000, 1000);
         let node = NodeType::Read {
             width: 640,
             height: 480,

@@ -1,4 +1,4 @@
-use crate::node_result::ImageType;
+use crate::node_value::ImageType;
 use kornia_image::{Image, ImageError, ImageSize, allocator::CpuAllocator};
 use kornia_imgproc::color;
 use std::sync::Arc;

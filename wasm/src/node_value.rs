@@ -12,7 +12,7 @@ macro_rules! kornia_image_method {
 }
 
 #[derive(Clone)]
-pub enum NodeResult {
+pub enum NodeValue {
     Image(Arc<ImageType>),
     Point(f32, f32),
     Value(f32),
@@ -25,19 +25,19 @@ pub enum ImageType {
     Rgb(Image<f32, 3, CpuAllocator>),
 }
 
-impl From<ImageType> for NodeResult {
+impl From<ImageType> for NodeValue {
     fn from(img: ImageType) -> Self {
         Self::Image(Arc::new(img))
     }
 }
 
-impl From<Arc<ImageType>> for NodeResult {
+impl From<Arc<ImageType>> for NodeValue {
     fn from(img: Arc<ImageType>) -> Self {
         Self::Image(img)
     }
 }
 
-impl NodeResult {
+impl NodeValue {
     pub fn size_bytes(&self) -> usize {
         match self {
             Self::Image(img) => img.size_bytes(),

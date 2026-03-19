@@ -1,4 +1,4 @@
-use crate::node_result::{ImageType, NodeResult};
+use crate::node_value::{ImageType, NodeValue};
 use kornia_image::{Image, ImageError, ImageSize};
 use kornia_imgproc::{filter, threshold};
 use ordered_float::OrderedFloat;
@@ -103,7 +103,7 @@ pub enum NodeError {
 }
 
 impl NodeType {
-    pub fn process(&self, inputs: Vec<NodeResult>) -> Result<NodeResult, NodeError> {
+    pub fn process(&self, inputs: Vec<NodeValue>) -> Result<NodeValue, NodeError> {
         match self {
             Self::Read { .. } => Self::read_process(),
             Self::ColorSplit { color } => Self::color_split_process(inputs, *color),
@@ -145,20 +145,20 @@ impl NodeType {
         }
     }
 
-    fn read_process() -> Result<NodeResult, NodeError> {
+    fn read_process() -> Result<NodeValue, NodeError> {
         Err(NodeError::ReadProcess())
     }
 
     fn color_split_process(
-        inputs: Vec<NodeResult>,
+        inputs: Vec<NodeValue>,
         color: ColorType,
-    ) -> Result<NodeResult, NodeError> {
-        let Some(NodeResult::Image(img_type)) = inputs.into_iter().next() else {
+    ) -> Result<NodeValue, NodeError> {
+        let Some(NodeValue::Image(img_type)) = inputs.into_iter().next() else {
             return Err(NodeError::InvalidInput(1));
         };
 
         match &*img_type {
-            ImageType::Gray(_) => Ok(NodeResult::Image(img_type)),
+            ImageType::Gray(_) => Ok(NodeValue::Image(img_type)),
             ImageType::Rgb(rgb) => match color {
                 ColorType::Red => rgb.channel(0),
                 ColorType::Green => rgb.channel(1),
@@ -170,13 +170,13 @@ impl NodeType {
     }
 
     fn gaussian_blur_process(
-        inputs: Vec<NodeResult>,
+        inputs: Vec<NodeValue>,
         kernel_x: u32,
         kernel_y: u32,
         sigma_x: f32,
         sigma_y: f32,
-    ) -> Result<NodeResult, NodeError> {
-        let Some(NodeResult::Image(img_type)) = inputs.into_iter().next() else {
+    ) -> Result<NodeValue, NodeError> {
+        let Some(NodeValue::Image(img_type)) = inputs.into_iter().next() else {
             return Err(NodeError::InvalidInput(1));
         };
 
@@ -203,8 +203,8 @@ impl NodeType {
         })
     }
 
-    fn sobel_process(inputs: Vec<NodeResult>, kernel: u32) -> Result<NodeResult, NodeError> {
-        let Some(NodeResult::Image(img_type)) = inputs.into_iter().next() else {
+    fn sobel_process(inputs: Vec<NodeValue>, kernel: u32) -> Result<NodeValue, NodeError> {
+        let Some(NodeValue::Image(img_type)) = inputs.into_iter().next() else {
             return Err(NodeError::InvalidInput(1));
         };
 
@@ -224,12 +224,12 @@ impl NodeType {
     }
 
     fn binarization_process(
-        inputs: Vec<NodeResult>,
+        inputs: Vec<NodeValue>,
         threshold: f32,
         max_value: f32,
         inverse: bool,
-    ) -> Result<NodeResult, NodeError> {
-        let Some(NodeResult::Image(img_type)) = inputs.into_iter().next() else {
+    ) -> Result<NodeValue, NodeError> {
+        let Some(NodeValue::Image(img_type)) = inputs.into_iter().next() else {
             return Err(NodeError::InvalidInput(1));
         };
 
@@ -252,24 +252,24 @@ impl NodeType {
         })
     }
 
-    // fn center_process(inputs: Vec<NodeResult>, rect: ImageRect) -> Result<NodeResult, NodeError> {
-    //     NodeResult::None
+    // fn center_process(inputs: Vec<NodeValue>, rect: ImageRect) -> Result<NodeValue, NodeError> {
+    //     NodeValue::None
     // }
 
-    // fn max_process(inputs: Vec<NodeResult>, rect: ImageRect) -> Result<NodeResult, NodeError> {
-    //     NodeResult::None
+    // fn max_process(inputs: Vec<NodeValue>, rect: ImageRect) -> Result<NodeValue, NodeError> {
+    //     NodeValue::None
     // }
 
-    // fn min_process(inputs: Vec<NodeResult>, rect: ImageRect) -> Result<NodeResult, NodeError> {
-    //     NodeResult::None
+    // fn min_process(inputs: Vec<NodeValue>, rect: ImageRect) -> Result<NodeValue, NodeError> {
+    //     NodeValue::None
     // }
 
-    // fn average_process(inputs: Vec<NodeResult>, rect: ImageRect) -> Result<NodeResult, NodeError> {
-    //     NodeResult::None
+    // fn average_process(inputs: Vec<NodeValue>, rect: ImageRect) -> Result<NodeValue, NodeError> {
+    //     NodeValue::None
     // }
 
-    // fn mode_process(inputs: Vec<NodeResult>, rect: ImageRect) -> Result<NodeResult, NodeError> {
-    //     NodeResult::None
+    // fn mode_process(inputs: Vec<NodeValue>, rect: ImageRect) -> Result<NodeValue, NodeError> {
+    //     NodeValue::None
     // }
 }
 
@@ -297,14 +297,14 @@ mod tests {
     #[test]
     fn color_split_red() -> Result<(), NodeError> {
         let img = create_rgb_image();
-        let inputs = vec![NodeResult::Image(img)];
+        let inputs = vec![NodeValue::Image(img)];
 
         let node = NodeType::ColorSplit {
             color: ColorType::Red,
         };
         let result = node.process(inputs)?;
 
-        if let NodeResult::Image(res_img) = result {
+        if let NodeValue::Image(res_img) = result {
             match &*res_img {
                 ImageType::Gray(gray) => {
                     let red = gray.get_pixel(0, 0, 0)?;
@@ -319,7 +319,7 @@ mod tests {
     #[test]
     fn gaussian_blur() {
         let img = create_rgb_image();
-        let inputs = vec![NodeResult::Image(img)];
+        let inputs = vec![NodeValue::Image(img)];
 
         let node = NodeType::GaussianBlur {
             kernel_x: 0,
@@ -335,7 +335,7 @@ mod tests {
     #[test]
     fn sobel() {
         let img = create_rgb_image();
-        let inputs = vec![NodeResult::Image(img)];
+        let inputs = vec![NodeValue::Image(img)];
 
         let zero = NodeType::Sobel { kernel: 0 };
         let over = NodeType::Sobel { kernel: 10 };
@@ -350,7 +350,7 @@ mod tests {
     #[test]
     fn binarization() -> Result<(), NodeError> {
         let img = create_rgb_image();
-        let inputs = vec![NodeResult::Image(img)];
+        let inputs = vec![NodeValue::Image(img)];
 
         let node = NodeType::Binarization {
             threshold: OrderedFloat(0.5),
@@ -359,7 +359,7 @@ mod tests {
         };
 
         let result = node.process(inputs)?;
-        if let NodeResult::Image(res_img) = result {
+        if let NodeValue::Image(res_img) = result {
             match &*res_img {
                 ImageType::Rgb(rgb) => {
                     let not_binarized = rgb
