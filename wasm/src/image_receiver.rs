@@ -3,15 +3,15 @@ use kornia_image::{Image, ImageError, ImageSize, allocator::CpuAllocator};
 use kornia_imgproc::color;
 use std::sync::Arc;
 
-pub struct ImageRecorder {
+pub struct ImageReceiver {
     buffer: Vec<u8>,
     width: u32,
     height: u32,
 }
 
-impl ImageRecorder {
+impl ImageReceiver {
     pub fn new(width: u32, height: u32) -> Self {
-        ImageRecorder {
+        ImageReceiver {
             buffer: vec![0; (4 * width * height) as usize],
             width,
             height,
@@ -30,7 +30,7 @@ impl ImageRecorder {
         self.buffer.as_ptr()
     }
 
-    pub fn record(&mut self, width: u32, height: u32) -> Result<Arc<ImageType>, ImageError> {
+    pub fn get(&mut self, width: u32, height: u32) -> Result<Arc<ImageType>, ImageError> {
         if width == 0 || height == 0 {
             return Err(ImageError::InvalidImageSize(
                 width as usize,
@@ -66,10 +66,10 @@ mod tests {
         let width = 5;
         let height = 5;
 
-        let mut recorder = ImageRecorder::new(width, height);
-        let zero_size = recorder.record(0, 0);
-        let over_width = recorder.record(2 * width, height)?;
-        let over_height = recorder.record(width, 2 * height)?;
+        let mut recorder = ImageReceiver::new(width, height);
+        let zero_size = recorder.get(0, 0);
+        let over_width = recorder.get(2 * width, height)?;
+        let over_height = recorder.get(width, 2 * height)?;
 
         let width = width as usize;
         let height = height as usize;

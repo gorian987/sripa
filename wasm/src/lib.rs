@@ -13,11 +13,11 @@ use kornia_imgproc::{
 };
 use wasm_bindgen::prelude::*;
 
+mod image_receiver;
 mod node;
 mod node_cache;
 mod node_graph;
 mod node_value;
-mod record;
 
 #[wasm_bindgen]
 pub struct CanvasImage {
